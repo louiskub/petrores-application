@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Petrores.Core;
 
@@ -38,7 +39,7 @@ internal sealed class LasHeader(string sourcePath)
     }
 }
 
-internal static class LasParsing
+internal static partial class LasParsing
 {
     internal static LasHeader ReadHeader(TextReader reader, string sourcePath)
     {
@@ -132,29 +133,34 @@ internal static class LasParsing
         return header;
     }
 
-    private static string SectionName(string text) => text.Trim().TrimStart('~')
-        .Split([' ', '\t', '|'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToUpperInvariant() ?? "";
+    [GeneratedRegex(@"^~?\s*(?<name>[^\s|]+)")]
+    private static partial Regex SectionNameRegex();
+
+    [GeneratedRegex(@"^(?<mnemonic>[^.]+?)\s*\.(?<unit>\S*)\s*(?<value>[^:]*?)(?:\s*:\s*(?<desc>.*))?$")]
+    private static partial Regex HeaderEntryRegex();
+
+    private static string SectionName(string text)
+    {
+        var match = SectionNameRegex().Match(text);
+        return match.Success ? match.Groups["name"].Value.ToUpperInvariant() : "";
+    }
 
     private static LasHeaderEntry? ParseHeaderEntry(string text, int lineNumber)
     {
-        var colon = text.IndexOf(':');
-        var definition = colon >= 0 ? text[..colon] : text;
-        var description = colon >= 0 ? text[(colon + 1)..].Trim() : "";
-        var dot = definition.IndexOf('.');
-        if (dot <= 0)
+        var match = HeaderEntryRegex().Match(text);
+        if (!match.Success)
             return null;
 
-        var mnemonic = definition[..dot].Trim();
+        var mnemonic = match.Groups["mnemonic"].Value.Trim();
         if (mnemonic.Length == 0)
             return null;
 
-        // Whitespace immediately after '.' means an empty unit, not the start of a unit token.
-        var tail = definition[(dot + 1)..];
-        var unitLength = 0;
-        while (unitLength < tail.Length && !char.IsWhiteSpace(tail[unitLength]))
-            unitLength++;
-
-        return new(mnemonic, tail[..unitLength], tail[unitLength..].Trim(), description, lineNumber);
+        return new(
+            mnemonic,
+            match.Groups["unit"].Value,
+            match.Groups["value"].Value.Trim(),
+            match.Groups["desc"].Value.Trim(),
+            lineNumber);
     }
 
     internal static string HeaderValue(LasHeaderEntry entry)
@@ -194,6 +200,8 @@ internal static class LasParsing
             return false;
         if (value == nullValue.Value)
             return true;
+        if (nullValue.Value == 0)
+            return false;
         return Math.Abs(value - nullValue.Value) <= epsilon;
     }
 
