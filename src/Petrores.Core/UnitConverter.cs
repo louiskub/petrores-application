@@ -23,7 +23,6 @@ public static class UnitConverter
             return (depths, unitClean, 1.0, UnitConversionStatus.NoConversionNeeded, null);
         }
 
-        // Feet to meters
         if (unitUpper is "FT" or "F" or "FEET" or "FOOT" or ".FT" or "FTS" or "FT.")
         {
             const double factor = 0.3048;
@@ -34,7 +33,6 @@ public static class UnitConverter
             return (converted, "m", factor, UnitConversionStatus.Converted, $"Converted depth from {unitClean} to m (factor 0.3048)");
         }
 
-        // Already in meters
         if (unitUpper is "M" or "METER" or "METERS" or "METRE" or "METRES" or "MTR" or "M.")
         {
             return (depths, "m", 1.0, UnitConversionStatus.AlreadyStandard, "Depth already in meters; normalized unit symbol to m");
@@ -63,7 +61,7 @@ public static class UnitConverter
             case WellMeasurementType.DensityCorrection:
                 if (options.StandardizeDensity)
                 {
-                    // kg/m3 to g/cm3
+
                     if (unitUpper is "KG/M3" or "KG/M^3" or "KGM3" or "K/M3" or "KG/M³" or "K/M^3")
                     {
                         const double factor = 0.001;
@@ -72,7 +70,6 @@ public static class UnitConverter
                             $"Converted bulk density from {unitClean} to g/cm3 (divided by 1000)", count, newVals);
                     }
 
-                    // Already g/cm3
                     if (unitUpper is "G/C3" or "G/CC" or "G/CM3" or "GM/CC" or "GM/C3" or "G/CM³" or "G/C" or "GR/CC" or "GM/CM3" or "GM/CM^3" or "G/CUBIC CM")
                     {
                         return new(unitClean, "g/cm3", 1.0, UnitConversionStatus.AlreadyStandard,
@@ -97,7 +94,7 @@ public static class UnitConverter
             case WellMeasurementType.Porosity:
                 if (options.StandardizePorosity)
                 {
-                    // Percentage to fraction (v/v)
+
                     if (unitUpper is "%" or "PERC" or "PERCENT" or "PCT" or "PCNT" or "PU" or "P.U." or "LPU" or "SPU")
                     {
                         var displayName = CurveAliasDictionary.GetDisplayName(measurement).ToLowerInvariant();
@@ -107,7 +104,6 @@ public static class UnitConverter
                             $"Converted {displayName} from {unitClean} to volume fraction v/v (divided by 100)", count, newVals);
                     }
 
-                    // Already fraction (v/v)
                     if (unitUpper is "V/V" or "DEC" or "DECP" or "DECI" or "FRAC" or "FRACTION" or "CFCF" or "FT3/FT3" or "M3/M3" or "C3/C3")
                     {
                         var displayName = CurveAliasDictionary.GetDisplayName(measurement).ToLowerInvariant();

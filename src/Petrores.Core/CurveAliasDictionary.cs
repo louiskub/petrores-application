@@ -17,13 +17,12 @@ public sealed partial class CurveAliasDictionary
 
     private void InitializeStandardAliases()
     {
-        // Depth
+
         Add("DEPT", WellMeasurementType.Depth, 1);
         Add("DEPTH", WellMeasurementType.Depth, 2);
         Add("MD", WellMeasurementType.Depth, 3);
         Add("TVD", WellMeasurementType.Depth, 4);
 
-        // Gamma Ray
         Add("GR", WellMeasurementType.GammaRay, 1);
         Add("GR_EDTC", WellMeasurementType.GammaRay, 2);
         Add("CGR", WellMeasurementType.GammaRay, 3);
@@ -43,7 +42,6 @@ public sealed partial class CurveAliasDictionary
         Add("PGR", WellMeasurementType.GammaRay, 17);
         Add("WGR", WellMeasurementType.GammaRay, 18);
 
-        // Deep Resistivity (Primary Resistivity for Track 2)
         Add("RT", WellMeasurementType.ResistivityDeep, 1);
         Add("ILD", WellMeasurementType.ResistivityDeep, 2);
         Add("LLD", WellMeasurementType.ResistivityDeep, 3);
@@ -77,7 +75,6 @@ public sealed partial class CurveAliasDictionary
         Add("DPRD", WellMeasurementType.ResistivityDeep, 31);
         Add("ATCO90", WellMeasurementType.ResistivityDeep, 32);
 
-        // Medium Resistivity
         Add("ILM", WellMeasurementType.ResistivityMedium, 51);
         Add("LLM", WellMeasurementType.ResistivityMedium, 52);
         Add("AT30", WellMeasurementType.ResistivityMedium, 53);
@@ -93,7 +90,6 @@ public sealed partial class CurveAliasDictionary
         Add("RES_MED", WellMeasurementType.ResistivityMedium, 63);
         Add("DPRL", WellMeasurementType.ResistivityMedium, 64);
 
-        // Shallow Resistivity
         Add("MSFL", WellMeasurementType.ResistivityShallow, 71);
         Add("SFLU", WellMeasurementType.ResistivityShallow, 72);
         Add("LLS", WellMeasurementType.ResistivityShallow, 73);
@@ -122,11 +118,9 @@ public sealed partial class CurveAliasDictionary
         Add("DPRS", WellMeasurementType.ResistivityShallow, 96);
         Add("RES_SHAL", WellMeasurementType.ResistivityShallow, 97);
 
-        // Generic Resistivity
         Add("RES", WellMeasurementType.Resistivity, 40);
         Add("RESISTIVITY", WellMeasurementType.Resistivity, 41);
 
-        // Bulk Density
         Add("RHOB", WellMeasurementType.BulkDensity, 1);
         Add("RHOZ", WellMeasurementType.BulkDensity, 2);
         Add("DEN", WellMeasurementType.BulkDensity, 3);
@@ -142,7 +136,6 @@ public sealed partial class CurveAliasDictionary
         Add("DENCOMP", WellMeasurementType.BulkDensity, 13);
         Add("DEN_Z", WellMeasurementType.BulkDensity, 14);
 
-        // Neutron Porosity
         Add("NPHI", WellMeasurementType.NeutronPorosity, 1);
         Add("TNPH", WellMeasurementType.NeutronPorosity, 2);
         Add("CNL", WellMeasurementType.NeutronPorosity, 3);
@@ -170,7 +163,6 @@ public sealed partial class CurveAliasDictionary
         Add("CNPOR", WellMeasurementType.NeutronPorosity, 25);
         Add("NPDL", WellMeasurementType.NeutronPorosity, 26);
 
-        // Density Porosity
         Add("DPHI", WellMeasurementType.DensityPorosity, 1);
         Add("DPHZ", WellMeasurementType.DensityPorosity, 2);
         Add("DPH8", WellMeasurementType.DensityPorosity, 3);
@@ -184,7 +176,6 @@ public sealed partial class CurveAliasDictionary
         Add("PHID", WellMeasurementType.DensityPorosity, 11);
         Add("DPDL", WellMeasurementType.DensityPorosity, 12);
 
-        // Sonic Porosity
         Add("SPHI", WellMeasurementType.SonicPorosity, 1);
         Add("SPHD", WellMeasurementType.SonicPorosity, 2);
         Add("SPHL", WellMeasurementType.SonicPorosity, 3);
@@ -192,7 +183,6 @@ public sealed partial class CurveAliasDictionary
         Add("SPDL", WellMeasurementType.SonicPorosity, 5);
         Add("PORA", WellMeasurementType.SonicPorosity, 6);
 
-        // Crossplot & NMR Porosity
         Add("PXND", WellMeasurementType.CrossplotPorosity, 1);
         Add("PXND_HILT", WellMeasurementType.CrossplotPorosity, 2);
         Add("PHIX", WellMeasurementType.CrossplotPorosity, 3);
@@ -203,25 +193,21 @@ public sealed partial class CurveAliasDictionary
         Add("TCMR", WellMeasurementType.CrossplotPorosity, 8);
         Add("CMRP_3MS", WellMeasurementType.CrossplotPorosity, 9);
 
-        // General Porosity
         Add("POR", WellMeasurementType.Porosity, 1);
         Add("POROSITY", WellMeasurementType.Porosity, 2);
         Add("PHI", WellMeasurementType.Porosity, 3);
         Add("PHIE", WellMeasurementType.Porosity, 4);
         Add("PHIT", WellMeasurementType.Porosity, 5);
 
-        // Density Correction
         Add("DRHO", WellMeasurementType.DensityCorrection, 1);
         Add("ZCOR", WellMeasurementType.DensityCorrection, 2);
         Add("DCOR", WellMeasurementType.DensityCorrection, 3);
 
-        // Photoelectric
         Add("PE", WellMeasurementType.Photoelectric, 1);
         Add("PEF", WellMeasurementType.Photoelectric, 2);
         Add("PEFZ", WellMeasurementType.Photoelectric, 3);
         Add("PE_HRLT", WellMeasurementType.Photoelectric, 4);
 
-        // Sonic
         Add("DT", WellMeasurementType.Sonic, 1);
         Add("DTC", WellMeasurementType.Sonic, 2);
         Add("DTCO", WellMeasurementType.Sonic, 3);
@@ -231,7 +217,6 @@ public sealed partial class CurveAliasDictionary
         Add("DTS", WellMeasurementType.Sonic, 7);
         Add("DTSM", WellMeasurementType.Sonic, 8);
 
-        // Caliper
         Add("CALI", WellMeasurementType.Caliper, 1);
         Add("CAL", WellMeasurementType.Caliper, 2);
         Add("HCAL", WellMeasurementType.Caliper, 3);
@@ -245,32 +230,26 @@ public sealed partial class CurveAliasDictionary
         Add("CALY", WellMeasurementType.Caliper, 11);
         Add("DSOZ", WellMeasurementType.Caliper, 12);
 
-        // Spontaneous Potential
         Add("SP", WellMeasurementType.SpontaneousPotential, 1);
         Add("SPC", WellMeasurementType.SpontaneousPotential, 2);
 
-        // Tension
         Add("TENS", WellMeasurementType.Tension, 1);
         Add("CFTC", WellMeasurementType.Tension, 2);
         Add("TEN", WellMeasurementType.Tension, 3);
 
-        // Temperature
         Add("TEMP", WellMeasurementType.Temperature, 1);
         Add("GTEM", WellMeasurementType.Temperature, 2);
         Add("CTEM", WellMeasurementType.Temperature, 3);
         Add("BHT", WellMeasurementType.Temperature, 4);
         Add("AMBT", WellMeasurementType.Temperature, 5);
 
-        // Rate of Penetration
         Add("ROP", WellMeasurementType.RateOfPenetration, 1);
         Add("ROPA", WellMeasurementType.RateOfPenetration, 2);
 
-        // Mud Weight
         Add("MW", WellMeasurementType.MudWeight, 1);
         Add("MUDW", WellMeasurementType.MudWeight, 2);
         Add("MWI", WellMeasurementType.MudWeight, 3);
 
-        // Total Gas
         Add("TGAS", WellMeasurementType.GasTotal, 1);
         Add("GAS", WellMeasurementType.GasTotal, 2);
         Add("TOTGAS", WellMeasurementType.GasTotal, 3);
@@ -285,7 +264,7 @@ public sealed partial class CurveAliasDictionary
         aliases[mnemonic.Trim()] = (type, priority);
     }
 
-    [GeneratedRegex(@"[:_.\-\[\(].*$")]
+    [GeneratedRegex(@"([:_.\-\[\(].*|\d+)$")]
     private static partial Regex SuffixRegex();
 
     public (WellMeasurementType Measurement, int Priority) ResolveWithPriority(string? mnemonic)
@@ -297,29 +276,37 @@ public sealed partial class CurveAliasDictionary
         if (aliases.TryGetValue(cleaned, out var match))
             return match;
 
-        // Try stripping suffix after underscore, colon, hyphen, or bracket (e.g. RHOB_1 -> RHOB, GR:1 -> GR)
         var stripped = SuffixRegex().Replace(cleaned, "").Trim();
         if (stripped.Length > 0 && aliases.TryGetValue(stripped, out var strippedMatch))
             return (strippedMatch.Measurement, strippedMatch.Priority + 50);
 
-        // Common prefix matches
-        var upper = cleaned.ToUpperInvariant();
-        if (upper.StartsWith("GR", StringComparison.Ordinal) && !upper.StartsWith("GRAD", StringComparison.Ordinal))
-            return (WellMeasurementType.GammaRay, 100);
-        if (upper.StartsWith("RHOB", StringComparison.Ordinal) || upper.StartsWith("RHOZ", StringComparison.Ordinal) || upper.StartsWith("ZDEN", StringComparison.Ordinal))
-            return (WellMeasurementType.BulkDensity, 100);
-        if (upper.StartsWith("NPHI", StringComparison.Ordinal) || upper.StartsWith("TNPH", StringComparison.Ordinal) || upper.StartsWith("CNL", StringComparison.Ordinal) || upper.StartsWith("NPOR", StringComparison.Ordinal))
-            return (WellMeasurementType.NeutronPorosity, 100);
-        if (upper.StartsWith("DPHI", StringComparison.Ordinal) || upper.StartsWith("DPHZ", StringComparison.Ordinal) || upper.StartsWith("DPOR", StringComparison.Ordinal))
-            return (WellMeasurementType.DensityPorosity, 100);
-        if (upper.StartsWith("SPHI", StringComparison.Ordinal))
-            return (WellMeasurementType.SonicPorosity, 100);
-        if (upper.StartsWith("CAL", StringComparison.Ordinal))
-            return (WellMeasurementType.Caliper, 100);
-        if (upper.StartsWith("DT", StringComparison.Ordinal))
-            return (WellMeasurementType.Sonic, 100);
-
         return (WellMeasurementType.Unknown, int.MaxValue);
+    }
+
+    public static bool IsUnitCompatible(WellMeasurementType measurement, string? unit)
+    {
+        if (string.IsNullOrWhiteSpace(unit))
+            return true;
+
+        var u = unit.Trim().ToUpperInvariant();
+
+        return measurement switch
+        {
+            WellMeasurementType.GammaRay =>
+                u is not ("%" or "PERC" or "PERCENT" or "PCT" or "PCNT" or "V/V" or "DEC" or "FRAC" or "FRACTION" or "OHMM" or "OHM-M" or "OHM.M" or "G/CC" or "G/CM3"),
+
+            WellMeasurementType.NeutronPorosity or WellMeasurementType.DensityPorosity or WellMeasurementType.SonicPorosity or WellMeasurementType.Porosity =>
+                u is not ("CPS" or "C/S" or "COUNTS" or "CPS/S" or "OHMM" or "OHM-M" or "OHM.M" or "G/CC" or "G/CM3" or "US/FT" or "US/M"),
+
+            WellMeasurementType.ResistivityDeep or WellMeasurementType.ResistivityMedium or
+            WellMeasurementType.ResistivityShallow or WellMeasurementType.Resistivity =>
+                u is not ("%" or "PERC" or "PERCENT" or "PCT" or "G/CC" or "G/CM3" or "CPS" or "API" or "GAPI" or "US/FT" or "US/M"),
+
+            WellMeasurementType.BulkDensity =>
+                u is not ("%" or "PERC" or "PERCENT" or "PCT" or "OHMM" or "OHM-M" or "OHM.M" or "CPS" or "API" or "GAPI" or "US/FT" or "US/M"),
+
+            _ => true
+        };
     }
 
     public WellMeasurementType Resolve(string? mnemonic) => ResolveWithPriority(mnemonic).Measurement;

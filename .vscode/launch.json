@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Petrores.App (WPF)",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/src/Petrores.App/Petrores.App.csproj"
+        },
+        {
+            "name": "Petrores.Check (Batch CLI)",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/tools/Petrores.Check/Petrores.Check.csproj",
+            "args": [
+                "TestData",
+                "--limit",
+                "50",
+                "--export-plots",
+                "output/plots"
+            ]
+        }
+    ]
+}

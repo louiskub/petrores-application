@@ -23,7 +23,6 @@ public sealed record LasHeaderEntry(
     int LineNumber
 );
 
-// Values[i] ต้องเป็นค่าที่ depth ตำแหน่ง i เดียวกัน; null หมายถึง missing value
 public sealed record Curve(
     string Mnemonic,
     string Unit,
@@ -32,11 +31,10 @@ public sealed record Curve(
 );
 
 public sealed record LasDiagnostic(
-    int? LineNumber, 
+    int? LineNumber,
     string Message
 );
 
-// Well เป็น null เมื่ออ่านไม่ได้; ถ้ามี Well พร้อม Diagnostics หมายถึงอ่านได้พร้อมคำเตือน
 public sealed record LasLoadResult(
     string SourcePath,
     Well? Well,

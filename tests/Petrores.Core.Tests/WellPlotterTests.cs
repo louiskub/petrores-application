@@ -7,6 +7,30 @@ namespace Petrores.Core.Tests;
 
 public class WellPlotterTests
 {
+    [Theory]
+    [InlineData("GR", "%", 1, false)]
+    [InlineData("GR", "%", 1, true)]
+    [InlineData("RT", "API", 2, false)]
+    [InlineData("RT", "API", 2, true)]
+    [InlineData("RHOB", "CPS", 3, false)]
+    [InlineData("RHOB", "CPS", 3, true)]
+    [InlineData("NPHI", "CPS", 3, false)]
+    [InlineData("NPHI", "CPS", 3, true)]
+    public void TrackPlot_IncompatibleUnits_AreNotDrawn(string mnemonic, string unit, int track, bool includeReport)
+    {
+        var well = CreateSampleWell() with { Curves = [new Curve(mnemonic, unit, "", [50, 60, 70, 80, 90, 100])] };
+        var conditioned = WellConditioner.Condition(well);
+        var report = includeReport ? conditioned.Report : null;
+        var plot = track switch
+        {
+            1 => WellPlotter.CreateTrack1Plot(conditioned.ConditionedWell, report, 1000, 1050),
+            2 => WellPlotter.CreateTrack2Plot(conditioned.ConditionedWell, report, 1000, 1050),
+            _ => WellPlotter.CreateTrack3Plot(conditioned.ConditionedWell, report, 1000, 1050)
+        };
+
+        Assert.Empty(plot.GetPlottables<ScottPlot.Plottables.Scatter>());
+    }
+
     private static Well CreateSampleWell()
     {
         double[] depths = [1000.0, 1010.0, 1020.0, 1030.0, 1040.0, 1050.0];
@@ -45,7 +69,6 @@ public class WellPlotterTests
         Assert.NotNull(pngBytes);
         Assert.True(pngBytes.Length > 1000);
 
-        // Verify PNG magic bytes: 0x89 0x50 0x4E 0x47
         Assert.Equal(0x89, pngBytes[0]);
         Assert.Equal(0x50, pngBytes[1]);
         Assert.Equal(0x4E, pngBytes[2]);
@@ -55,7 +78,7 @@ public class WellPlotterTests
     [Fact]
     public void RenderCompositePlot_WithMissingCurves_DoesNotCrashAndPlotsRemaining()
     {
-        // Well with ONLY Gamma Ray (no Resistivity, no Density, no Neutron)
+
         double[] depths = [500.0, 510.0, 520.0];
         var curves = new[]
         {
@@ -107,7 +130,7 @@ public class WellPlotterTests
         var plot = WellPlotter.CreateTrack1Plot(well, null, 1000.0, 1050.0);
 
         Assert.NotNull(plot);
-        // Depth increasing downward: bottom axis is 1050 (deep), top axis is 1000 (shallow)
+
         Assert.Equal(1050.0, plot.Axes.GetLimits().Bottom);
         Assert.Equal(1000.0, plot.Axes.GetLimits().Top);
     }
@@ -136,5 +159,35 @@ public class WellPlotterTests
         Assert.Equal(1000.0, plot.Axes.GetLimits().Top);
         Assert.Equal(1.95, plot.Axes.GetLimits().Left, 3);
         Assert.Equal(2.95, plot.Axes.GetLimits().Right, 3);
+    }
+
+    [Fact]
+    public void RenderCompositePlot_WithDepthGaps_RendersCleanly()
+    {
+
+        double[] depths = [1000.0, 1001.0, 1002.0, 1100.0, 1101.0];
+        var curves = new[]
+        {
+            new Curve("GR", "API", "Gamma Ray", [45.0, 50.0, 55.0, 80.0, 85.0]),
+            new Curve("ILD", "OHMM", "Resistivity", [10.0, 12.0, 11.0, 25.0, 30.0]),
+            new Curve("RHOB", "G/C3", "Bulk Density", [2.5, 2.52, 2.48, 2.3, 2.32]),
+            new Curve("NPHI", "V/V", "Neutron Porosity", [0.15, 0.16, 0.14, 0.3, 0.28])
+        };
+
+        var well = new Well(
+            VersionInformation: [],
+            WellInformation: [new LasHeaderEntry("WELL", "", "GAP-WELL", "", 1)],
+            ParameterInformation: null,
+            OtherInformation: null,
+            Depths: depths,
+            Curves: curves,
+            DepthUnit: "M"
+        );
+
+        var conditionResult = WellConditioner.Condition(well);
+        var bytes = WellPlotter.RenderCompositePlot(conditionResult.ConditionedWell, conditionResult.Report);
+
+        Assert.NotNull(bytes);
+        Assert.True(bytes.Length > 1000);
     }
 }

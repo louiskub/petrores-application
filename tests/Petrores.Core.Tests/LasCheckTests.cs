@@ -78,6 +78,32 @@ public sealed class LasCheckTests : IDisposable
         Assert.Contains("Invalid value for GR", output.ToString());
     }
 
+    [Fact]
+    public void Run_UnwritableReportDestination_ReturnsExitCodeOne()
+    {
+        var fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "minimal.las");
+        File.Copy(fixture, Path.Combine(directory, "well-01.las"));
+
+        var invalidReportPath = directory;
+        var code = Petrores.Check.Program.Run([directory, "--report", invalidReportPath], output, error);
+
+        Assert.Equal(1, code);
+        Assert.Contains("Failed to write conditioning report", error.ToString());
+    }
+
+    [Fact]
+    public void Run_UnwritablePlotsDirectory_ReturnsErrorInsteadOfThrowing()
+    {
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "minimal.las"), Path.Combine(directory, "well.las"));
+        var plotsPath = Path.Combine(directory, "blocked");
+        File.WriteAllText(plotsPath, "This is a file, not a directory.");
+
+        var code = Petrores.Check.Program.Run([directory, "--export-plots", plotsPath], output, error);
+
+        Assert.NotEqual(0, code);
+        Assert.Contains("Cannot create plots folder", error.ToString());
+    }
+
     public void Dispose()
     {
         output.Dispose();

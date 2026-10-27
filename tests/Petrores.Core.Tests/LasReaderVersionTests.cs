@@ -170,6 +170,60 @@ public class LasReaderVersionTests
     }
 
     [Fact]
+    public void Read_WrappedData_AmbiguousSingleValue_StopsWithoutShiftingDepths()
+    {
+
+        var data = "1000\n1001\n60\n1002";
+        var text = Las("2.0", wrap: "YES", data: data)
+            .Replace("STEP.M 0.5", "STEP.M 1.0")
+            .Replace("GR.API : Gamma ray\n", "");
+        var result = ReadText(text);
+
+        Assert.Null(result.Well);
+        Assert.Contains(result.Diagnostics, entry => entry.Message.Contains("Ambiguous wrapped record"));
+    }
+
+    [Theory]
+    [InlineData("1000\n1100 10\n1001\n1101 20")]
+    [InlineData("1000\n1100\n10\n1001\n1101\n20")]
+    public void Read_WrappedData_LargeMeasurements_AreNotTreatedAsDepths(string data)
+    {
+        var result = ReadText(Las(wrap: "YES", data: data).Replace("STEP.M 0.5", "STEP.M 1.0"));
+
+        Assert.NotNull(result.Well);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal(new[] { 1000.0, 1001.0 }, result.Well.Depths);
+        Assert.Equal(new double?[] { 1100, 1101 }, result.Well.Curves[0].Values);
+        Assert.Equal(new double?[] { 10, 20 }, result.Well.Curves[1].Values);
+    }
+
+    [Fact]
+    public void Read_WrappedData_TruncatedWithoutDepthMetadata_DoesNotInventARecord()
+    {
+        var text = Las(wrap: "YES", data: "1000\n50\n1001\n60 10\n1002\n70 20")
+            .Replace("STRT.M 1000 : Start depth", "")
+            .Replace("STOP.M 1001 : Stop depth", "")
+            .Replace("STEP.M 0.5 : Step", "");
+
+        var result = ReadText(text);
+
+        Assert.Null(result.Well);
+        Assert.Contains(result.Diagnostics, entry => entry.Message.Contains("Ambiguous wrapped record"));
+    }
+
+    [Fact]
+    public void Read_WrappedData_AmbiguityAfterValidRecord_PreservesOnlyCompletedRecords()
+    {
+        var result = ReadText(Las(wrap: "YES", data: "1000\n50 12\n1000.5\n60\n1001\n70 20"));
+
+        Assert.NotNull(result.Well);
+        Assert.Equal(new[] { 1000.0 }, result.Well.Depths);
+        Assert.Equal(new double?[] { 50 }, result.Well.Curves[0].Values);
+        Assert.Equal(new double?[] { 12 }, result.Well.Curves[1].Values);
+        Assert.Contains(result.Diagnostics, entry => entry.Message.Contains("Ambiguous wrapped record"));
+    }
+
+    [Fact]
     public void Read_InvalidMeasurement_PreservesTheDepthAndOtherMeasurements()
     {
         var result = ReadText(Las(data: "1000 broken 12"));

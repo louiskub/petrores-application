@@ -30,7 +30,6 @@ public static class WellConditioner
             }
         }
 
-        // Validate curve lengths match depth length
         var rawDepthCount = well.Depths.Length;
         foreach (var curve in well.Curves)
         {
@@ -41,10 +40,8 @@ public static class WellConditioner
             }
         }
 
-        // Extract null sentinel from WellInformation (or default -999.25)
         var nullSentinel = ExtractNullSentinel(well);
 
-        // Sanitize curve values upfront: sentinel values, NaNs, and non-finite numbers become null
         var sanitizedCurves = new Curve[well.Curves.Length];
         for (var c = 0; c < well.Curves.Length; c++)
         {
@@ -57,10 +54,8 @@ public static class WellConditioner
             sanitizedCurves[c] = new Curve(rawCurve.Mnemonic, rawCurve.Unit, rawCurve.Description, cleanVals);
         }
 
-        // 1. Analyze depth order
         var originalOrder = AnalyzeDepthOrder(well.Depths);
 
-        // 2. Sort and deduplicate
         var (sortedDepths, sortedCurves, wasReordered, isReversed, dupRowCount, dupGroupCount, dupDetails) =
             SortAndDeduplicate(well.Depths, sanitizedCurves, originalOrder, options);
 
@@ -78,14 +73,12 @@ public static class WellConditioner
             warnings.Add($"Found {dupGroupCount} duplicate depth points ({dupRowCount} duplicate rows merged via averaging).");
         }
 
-        // 3. Analyze sampling on deduplicated depths
         var (step, minStep, maxStep, isUniform, gapCount) = AnalyzeSampling(sortedDepths, options.GapStepMultiplier);
         if (gapCount > 0)
         {
             warnings.Add($"Detected {gapCount} depth gap(s) exceeding {options.GapStepMultiplier}x median step.");
         }
 
-        // 4. Convert depth units
         var (finalDepths, depthUnit, depthFactor, depthStatus, depthNote) =
             UnitConverter.ConvertDepth(sortedDepths, well.DepthUnit, options);
 
@@ -99,7 +92,6 @@ public static class WellConditioner
             dupDetails = dupDetails.Select(d => d with { ConditionedDepth = Math.Round(d.Depth * depthFactor, 4) }).ToList();
         }
 
-        // 5. Convert curve units and calculate missing value statistics
         var aliasDict = CurveAliasDictionary.Default;
         var conditionedCurves = new List<Curve>();
         var curveReports = new List<CurveConditioningReport>();
@@ -128,7 +120,6 @@ public static class WellConditioner
                 convResult.ConvertedValues);
             conditionedCurves.Add(conditionedCurve);
 
-            // Compute missing stats
             var nullCount = 0;
             double? firstValid = null;
             double? lastValid = null;
@@ -172,10 +163,8 @@ public static class WellConditioner
 
         var overallNullPct = totalPoints > 0 ? (totalMissing * 100.0) / totalPoints : 0.0;
 
-        // 6. Select primary curves for Stage 3 Tracks
         var primaryCurves = SelectPrimaryCurves(conditionedCurves, curveReports, aliasDict);
 
-        // 7. Assemble depth report
         var depthReport = new DepthConditioningReport(
             OriginalOrder: originalOrder,
             WasReordered: wasReordered,
@@ -265,7 +254,6 @@ public static class WellConditioner
             return (rawDepths, rawCurves, false, false, 0, 0, []);
         }
 
-        // Indices to sort
         var indices = new int[n];
         for (var i = 0; i < n; i++) indices[i] = i;
 
@@ -273,7 +261,7 @@ public static class WellConditioner
 
         if (options.SortDepthAscending)
         {
-            // Stable sort
+
             Array.Sort(indices, (a, b) =>
             {
                 var cmp = rawDepths[a].CompareTo(rawDepths[b]);
@@ -306,7 +294,6 @@ public static class WellConditioner
             return (sDepths, sCurves, wasReordered, isReversed, 0, 0, []);
         }
 
-        // Group duplicates
         var outDepths = new List<double>();
         var outCurvesValues = rawCurves.Select(_ => new List<double?>()).ToArray();
         var dupDetails = new List<DuplicateDepthDetail>();
@@ -365,7 +352,6 @@ public static class WellConditioner
                         }
                     }
 
-                    // Average valid points; if some null and some valid, picks valid; if all null, null
                     double? merged;
                     if (validValues.Count == 0)
                     {
@@ -443,14 +429,12 @@ public static class WellConditioner
     {
         var selections = new Dictionary<string, PrimaryCurveSelection>();
 
-        // Track 1: Gamma Ray
         selections["Track1_GammaRay"] = SelectCandidate(
             "Track 1 (Gamma Ray)",
             WellMeasurementType.GammaRay,
             curves, curveReports, aliasDict,
             m => m == WellMeasurementType.GammaRay);
 
-        // Track 2: Resistivity (Deep preferred, fallback to generic Resistivity, then Medium, then Shallow)
         selections["Track2_Resistivity"] = SelectCandidate(
             "Track 2 (Resistivity)",
             WellMeasurementType.ResistivityDeep,
@@ -460,14 +444,12 @@ public static class WellConditioner
                  or WellMeasurementType.ResistivityMedium
                  or WellMeasurementType.ResistivityShallow);
 
-        // Track 3A: Bulk Density
         selections["Track3_BulkDensity"] = SelectCandidate(
             "Track 3 (Bulk Density)",
             WellMeasurementType.BulkDensity,
             curves, curveReports, aliasDict,
             m => m == WellMeasurementType.BulkDensity);
 
-        // Track 3B: Neutron Porosity
         selections["Track3_NeutronPorosity"] = SelectCandidate(
             "Track 3 (Neutron Porosity)",
             WellMeasurementType.NeutronPorosity,
@@ -490,7 +472,9 @@ public static class WellConditioner
         for (var i = 0; i < curves.Count; i++)
         {
             var report = curveReports[i];
-            if (predicate(report.MappedMeasurement))
+            if (predicate(report.MappedMeasurement)
+                && CurveAliasDictionary.IsUnitCompatible(targetType, report.OriginalUnit)
+                && CurveAliasDictionary.IsUnitCompatible(targetType, report.ConditionedUnit))
             {
                 var priority = aliasDict.GetPriority(report.OriginalMnemonic);
                 var cov = report.TotalCount > 0 ? (report.ValidCount * 100.0) / report.TotalCount : 0.0;
@@ -510,8 +494,12 @@ public static class WellConditioner
                 CandidateMnemonics: []);
         }
 
-        // Rank candidates: lower priority number first, then higher coverage percentage, then higher valid count
-        candidates.Sort((a, b) =>
+        var candidateNames = candidates.Select(c => c.Mnemonic).ToList();
+
+        var usableCandidates = candidates.Where(c => c.ValidCount > 0).ToList();
+        var pool = usableCandidates.Count > 0 ? usableCandidates : candidates;
+
+        pool.Sort((a, b) =>
         {
             var pCmp = a.Priority.CompareTo(b.Priority);
             if (pCmp != 0) return pCmp;
@@ -520,11 +508,12 @@ public static class WellConditioner
             return b.ValidCount.CompareTo(a.ValidCount);
         });
 
-        var chosen = candidates[0];
-        var candidateNames = candidates.Select(c => c.Mnemonic).ToList();
+        var chosen = pool[0];
         var reason = candidates.Count == 1
             ? $"Only candidate matching {targetType} with {chosen.Coverage:F1}% valid points"
-            : $"Selected among [{string.Join(", ", candidateNames)}] by highest priority (rank {chosen.Priority}) and {chosen.Coverage:F1}% coverage";
+            : (usableCandidates.Count > 0 && usableCandidates.Count < candidates.Count)
+                ? $"Selected '{chosen.Mnemonic}' with {chosen.Coverage:F1}% usable data over empty alternative(s)"
+                : $"Selected among [{string.Join(", ", candidateNames)}] by highest priority (rank {chosen.Priority}) and {chosen.Coverage:F1}% coverage";
 
         return new PrimaryCurveSelection(
             TrackName: trackName,

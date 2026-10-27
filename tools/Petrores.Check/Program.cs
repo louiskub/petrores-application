@@ -8,16 +8,60 @@ public static class Program
 
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {
-        if (args.Length != 1)
+        if (args.Length == 0)
         {
-            error.WriteLine("Usage: dotnet run --project tools/Petrores.Check -- <LAS-folder>");
+            error.WriteLine("Usage: dotnet run --project tools/Petrores.Check -- <LAS-folder> [options]");
             return 2;
         }
+
+        if (args.Contains("--help") || args.Contains("-h"))
+        {
+            output.WriteLine("Petrores LAS Batch Processor & Plot Exporter");
+            output.WriteLine("Usage: dotnet run --project tools/Petrores.Check -- <LAS-folder> [options]");
+            output.WriteLine();
+            output.WriteLine("Options:");
+            output.WriteLine("  --export-plots <dir>  Export 3-track composite log plot PNG for each well to directory");
+            output.WriteLine("  --limit <number>      Process only the first N files (e.g. 50)");
+            output.WriteLine("  --report <file>       Specify output path for conditioning-report.json");
+            return 0;
+        }
+
+        var folder = args[0];
+        string? plotsDir = null;
+        string? reportPath = null;
+        int? limit = null;
+
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i].Equals("--export-plots", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                plotsDir = args[++i];
+            }
+            else if (args[i].Equals("--report", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                reportPath = args[++i];
+            }
+            else if (args[i].Equals("--limit", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out var lim) && lim > 0)
+                {
+                    limit = lim;
+                }
+            }
+            else
+            {
+                error.WriteLine($"Usage: dotnet run --project tools/Petrores.Check -- <LAS-folder> [options]");
+                error.WriteLine($"Unknown or invalid argument: {args[i]}");
+                return 2;
+            }
+        }
+
+        reportPath ??= Path.Combine(Directory.GetCurrentDirectory(), "output", "conditioning-report.json");
 
         string[] files;
         try
         {
-            files = Directory.GetFiles(args[0])
+            files = Directory.GetFiles(folder)
                 .Where(path => Path.GetExtension(path).Equals(".las", StringComparison.OrdinalIgnoreCase))
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
@@ -34,17 +78,41 @@ public static class Program
             return 2;
         }
 
-        output.WriteLine($"Found {files.Length} LAS files.");
+        if (limit.HasValue && limit.Value < files.Length)
+        {
+            files = files.Take(limit.Value).ToArray();
+        }
+
+        output.WriteLine($"Processing {files.Length} LAS files from '{folder}'...");
+        if (plotsDir is not null)
+        {
+            try
+            {
+                Directory.CreateDirectory(plotsDir);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                error.WriteLine($"Cannot create plots folder: {exception.Message}");
+                return 2;
+            }
+            output.WriteLine($"Plots will be exported to: {Path.GetFullPath(plotsDir)}");
+        }
+
         var reader = new LasReader();
         var clean = 0;
         var warnings = 0;
         var failed = 0;
+        var exportFailures = 0;
         var wellReports = new List<WellConditioningReport>();
 
-        foreach (var file in files)
+        for (var fileIdx = 0; fileIdx < files.Length; fileIdx++)
         {
+            var file = files[fileIdx];
             var result = reader.Read(file);
             string status;
+            var fileName = Path.GetFileName(file);
+            var safeBaseName = Path.GetFileNameWithoutExtension(file);
+
             if (result.Well is null)
             {
                 status = "FAIL";
@@ -84,24 +152,47 @@ public static class Program
                     PrimaryCurves: new Dictionary<string, PrimaryCurveSelection>(),
                     Warnings: result.Diagnostics.Select(d => d.Message).ToList()));
             }
-            else if (result.Diagnostics.Length > 0)
-            {
-                status = "WARN";
-                warnings++;
-                var conditioned = WellConditioner.Condition(result.Well, file, diagnostics: result.Diagnostics);
-                wellReports.Add(conditioned.Report);
-            }
             else
             {
-                status = "OK";
-                clean++;
+                if (result.Diagnostics.Length > 0)
+                {
+                    status = "WARN";
+                    warnings++;
+                }
+                else
+                {
+                    status = "OK";
+                    clean++;
+                }
+
                 var conditioned = WellConditioner.Condition(result.Well, file, diagnostics: result.Diagnostics);
                 wellReports.Add(conditioned.Report);
+
+                if (plotsDir is not null)
+                {
+                    try
+                    {
+                        var plotFileName = $"{fileIdx + 1:D2}_{safeBaseName}.png";
+                        var plotFilePath = Path.Combine(plotsDir, plotFileName);
+                        WellPlotter.SaveCompositePlot(conditioned.ConditionedWell, plotFilePath, conditioned.Report);
+                    }
+                    catch (Exception ex)
+                    {
+                        exportFailures++;
+                        error.WriteLine($"  [PLOT ERROR] Failed to export plot for {fileName}: {ex.Message}");
+                    }
+                }
             }
 
-            output.WriteLine($"[{status}] {Path.GetFileName(file)} | rows={result.Well?.Depths.Length ?? 0}; curves={result.Well?.Curves.Length ?? 0}; diagnostics={result.Diagnostics.Length}");
-            foreach (var diagnostic in result.Diagnostics)
+            output.WriteLine($"[{status}] {fileName} | rows={result.Well?.Depths.Length ?? 0}; curves={result.Well?.Curves.Length ?? 0}; diagnostics={result.Diagnostics.Length}");
+            foreach (var diagnostic in result.Diagnostics.Take(5))
+            {
                 output.WriteLine($"  {(diagnostic.LineNumber is { } line ? $"line {line}" : "file")}: {diagnostic.Message}");
+            }
+            if (result.Diagnostics.Length > 5)
+            {
+                output.WriteLine($"  ... and {result.Diagnostics.Length - 5} more diagnostics");
+            }
 
             var report = wellReports[^1];
             if (result.Well is not null)
@@ -130,14 +221,13 @@ public static class Program
                 }
 
                 output.WriteLine($"  primary curves: Track 1 (GR)='{report.PrimaryCurves.GetValueOrDefault("Track1_GammaRay")?.SelectedMnemonic ?? "none"}'; Track 2 (Res)='{report.PrimaryCurves.GetValueOrDefault("Track2_Resistivity")?.SelectedMnemonic ?? "none"}'; Track 3 (Density)='{report.PrimaryCurves.GetValueOrDefault("Track3_BulkDensity")?.SelectedMnemonic ?? "none"}'; Track 3 (Neutron)='{report.PrimaryCurves.GetValueOrDefault("Track3_NeutronPorosity")?.SelectedMnemonic ?? "none"}'");
-
                 output.WriteLine($"  missing values: policy='{report.MissingValuesPolicy}'; {report.OverallMissingPercentage:F1}% missing ({report.TotalMissingPoints}/{report.TotalPoints} points)");
             }
         }
 
-        output.WriteLine($"Files={files.Length}; OK={clean}; WARN={warnings}; FAIL={failed}");
+        output.WriteLine();
+        output.WriteLine($"Summary: Files={files.Length}; OK={clean}; WARN={warnings}; FAIL={failed}");
 
-        // Save batch conditioning report
         var totalReversed = wellReports.Count(r => r.Depth.IsReversed);
         var totalDupFiles = wellReports.Count(r => r.Depth.DuplicateRowCount > 0);
         var totalDupRows = wellReports.Sum(r => r.Depth.DuplicateRowCount);
@@ -155,15 +245,15 @@ public static class Program
 
         try
         {
-            var reportPath = Path.Combine(Directory.GetCurrentDirectory(), "conditioning-report.json");
             batchReport.SaveJson(reportPath, indented: true);
-            output.WriteLine($"Conditioning report saved to: {reportPath}");
+            output.WriteLine($"Batch conditioning report saved to: {Path.GetFullPath(reportPath)}");
         }
-        catch
+        catch (Exception ex)
         {
-            // Non-fatal if report file cannot be written to current directory
+            exportFailures++;
+            error.WriteLine($"Failed to write conditioning report: {ex.Message}");
         }
 
-        return failed > 0 ? 1 : 0;
+        return (failed > 0 || exportFailures > 0) ? 1 : 0;
     }
 }

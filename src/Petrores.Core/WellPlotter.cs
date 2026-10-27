@@ -25,10 +25,6 @@ public static class WellPlotter
     private static readonly ScottPlot.Color ColorNeutronOrange = ScottPlot.Color.FromHex("#E65100");
     private static readonly ScottPlot.Color ColorGridGray = ScottPlot.Color.FromHex("#E0E0E0");
 
-    /// <summary>
-    /// Renders a full publication-quality 3-track well log plot to PNG image bytes.
-    /// Tracks: Depth Ruler | Track 1 (Gamma Ray) | Track 2 (Resistivity Log) | Track 3 (Bulk Density + Neutron Porosity overlay).
-    /// </summary>
     public static byte[] RenderCompositePlot(
         Well well,
         WellConditioningReport? report = null,
@@ -49,7 +45,6 @@ public static class WellPlotter
             maxDepth = minDepth + 1.0;
         }
 
-        // Layout dimensions
         const int headerHeight = 90;
         var plotHeight = options.ImageHeight - headerHeight;
         const int depthTrackWidth = 110;
@@ -58,11 +53,17 @@ public static class WellPlotter
         var track2Width = (int)(remainingWidth * 0.31);
         var track3Width = remainingWidth - track1Width - track2Width;
 
-        // Render subplots
         var depthPlot = CreateDepthTrackPlot(well, minDepth, maxDepth);
         var track1Plot = CreateTrack1Plot(well, report, minDepth, maxDepth, options);
         var track2Plot = CreateTrack2Plot(well, report, minDepth, maxDepth, options);
         var track3Plot = CreateTrack3Plot(well, report, minDepth, maxDepth, options);
+
+        const float sharedTopPadding = 65f;
+        const float sharedBottomPadding = 45f;
+        depthPlot.Layout.Fixed(new PixelPadding(left: 45, right: 10, bottom: sharedBottomPadding, top: sharedTopPadding));
+        track1Plot.Layout.Fixed(new PixelPadding(left: 60, right: 15, bottom: sharedBottomPadding, top: sharedTopPadding));
+        track2Plot.Layout.Fixed(new PixelPadding(left: 60, right: 15, bottom: sharedBottomPadding, top: sharedTopPadding));
+        track3Plot.Layout.Fixed(new PixelPadding(left: 60, right: 15, bottom: sharedBottomPadding, top: sharedTopPadding));
 
         var depthBytes = depthPlot.GetImageBytes(depthTrackWidth, plotHeight, ImageFormat.Png);
         var t1Bytes = track1Plot.GetImageBytes(track1Width, plotHeight, ImageFormat.Png);
@@ -74,15 +75,12 @@ public static class WellPlotter
         using var bmpT2 = SKBitmap.Decode(t2Bytes);
         using var bmpT3 = SKBitmap.Decode(t3Bytes);
 
-        // Compose into single high-res canvas
         using var composite = new SKBitmap(options.ImageWidth, options.ImageHeight);
         using var canvas = new SKCanvas(composite);
         canvas.Clear(SKColors.White);
 
-        // Draw header
         DrawHeader(canvas, well, report, minDepth, maxDepth, options.ImageWidth, headerHeight);
 
-        // Draw tracks
         var currentX = 0f;
         canvas.DrawBitmap(bmpDepth, currentX, headerHeight);
         currentX += depthTrackWidth;
@@ -95,7 +93,6 @@ public static class WellPlotter
 
         canvas.DrawBitmap(bmpT3, currentX, headerHeight);
 
-        // Draw subtle vertical dividers between tracks
         using var dividerPaint = new SKPaint
         {
             Color = new SKColor(180, 180, 180),
@@ -111,9 +108,6 @@ public static class WellPlotter
         return encoded.ToArray();
     }
 
-    /// <summary>
-    /// Saves the composite well log plot directly to a file on disk.
-    /// </summary>
     public static void SaveCompositePlot(
         Well well,
         string outputPath,
@@ -129,9 +123,6 @@ public static class WellPlotter
         File.WriteAllBytes(outputPath, bytes);
     }
 
-    /// <summary>
-    /// Creates Track 1: Gamma Ray (linear scale, depth increasing downward).
-    /// </summary>
     public static Plot CreateTrack1Plot(
         Well well,
         WellConditioningReport? report,
@@ -143,12 +134,10 @@ public static class WellPlotter
         var plot = new Plot();
         ConfigurePlotTheme(plot);
 
-        // Depth axis inverted: shallowest on top, deepest on bottom
         plot.Axes.SetLimitsY(bottom: maxDepth, top: minDepth);
         plot.Axes.Left.TickGenerator = new NumericAutomatic();
 
-        var curveMnemonic = report?.PrimaryCurves.GetValueOrDefault("Track1_GammaRay")?.SelectedMnemonic;
-        var curve = FindCurve(well, curveMnemonic, WellMeasurementType.GammaRay);
+        var curve = FindCurve(well, report, "Track1_GammaRay", WellMeasurementType.GammaRay);
 
         if (curve is null || !HasValidValues(curve))
         {
@@ -165,14 +154,12 @@ public static class WellPlotter
         plot.Title($"Track 1: {curve.Mnemonic} ({curve.Unit})");
         plot.Axes.Bottom.Label.Text = $"Gamma Ray ({curve.Unit})";
 
-        AddContiguousSegments(plot, well.Depths, curve.Values, ColorForestGreen, 1.8f);
+        var gapThreshold = DetermineGapThreshold(well.Depths, report);
+        AddContiguousSegments(plot, well.Depths, curve.Values, ColorForestGreen, 1.8f, gapThreshold: gapThreshold);
 
         return plot;
     }
 
-    /// <summary>
-    /// Creates Track 2: Resistivity on a logarithmic scale (depth increasing downward).
-    /// </summary>
     public static Plot CreateTrack2Plot(
         Well well,
         WellConditioningReport? report,
@@ -186,14 +173,13 @@ public static class WellPlotter
 
         plot.Axes.SetLimitsY(bottom: maxDepth, top: minDepth);
 
-        var curveMnemonic = report?.PrimaryCurves.GetValueOrDefault("Track2_Resistivity")?.SelectedMnemonic;
-        var curve = FindCurve(well, curveMnemonic, WellMeasurementType.ResistivityDeep, WellMeasurementType.Resistivity);
+        var curve = FindCurve(well, report, "Track2_Resistivity", WellMeasurementType.ResistivityDeep,
+            WellMeasurementType.Resistivity, WellMeasurementType.ResistivityMedium, WellMeasurementType.ResistivityShallow);
 
         var logMin = Math.Log10(options.ResistivityMin);
         var logMax = Math.Log10(options.ResistivityMax);
         plot.Axes.SetLimitsX(logMin, logMax);
 
-        // Logarithmic ticks: 0.2, 1, 10, 100, 1000, 2000
         var logTicks = new NumericManual();
         logTicks.AddMajor(Math.Log10(0.2), "0.2");
         logTicks.AddMajor(Math.Log10(1.0), "1");
@@ -202,7 +188,6 @@ public static class WellPlotter
         logTicks.AddMajor(Math.Log10(1000.0), "1000");
         logTicks.AddMajor(Math.Log10(2000.0), "2000");
 
-        // Minor ticks between decades
         double[] minorMultipliers = [2, 3, 4, 5, 6, 7, 8, 9];
         foreach (var m in minorMultipliers)
         {
@@ -223,7 +208,6 @@ public static class WellPlotter
         plot.Title($"Track 2: {curve.Mnemonic} ({curve.Unit}) [Log]");
         plot.Axes.Bottom.Label.Text = $"Resistivity ({curve.Unit}) - Log Scale";
 
-        // Filter and transform positive values to log10
         var logValues = new double?[curve.Values.Length];
         for (var i = 0; i < curve.Values.Length; i++)
         {
@@ -231,16 +215,12 @@ public static class WellPlotter
             logValues[i] = (val is { } v && v > 0) ? Math.Log10(v) : null;
         }
 
-        AddContiguousSegments(plot, well.Depths, logValues, ColorCrimson, 1.8f);
+        var gapThreshold = DetermineGapThreshold(well.Depths, report);
+        AddContiguousSegments(plot, well.Depths, logValues, ColorCrimson, 1.8f, gapThreshold: gapThreshold);
 
         return plot;
     }
 
-    /// <summary>
-    /// Creates Track 3: Bulk Density & Neutron Porosity on the same track.
-    /// Bulk Density: 1.95 - 2.95 g/cm³ (solid blue)
-    /// Neutron Porosity: 0.45 - -0.15 (dashed orange, inverted overlay)
-    /// </summary>
     public static Plot CreateTrack3Plot(
         Well well,
         WellConditioningReport? report,
@@ -255,7 +235,6 @@ public static class WellPlotter
         plot.Axes.SetLimitsY(bottom: maxDepth, top: minDepth);
         plot.Axes.SetLimitsX(options.DensityMin, options.DensityMax);
 
-        // Density ticks on bottom axis
         var densityTicks = new NumericManual();
         densityTicks.AddMajor(1.95, "1.95");
         densityTicks.AddMajor(2.20, "2.20");
@@ -264,11 +243,8 @@ public static class WellPlotter
         densityTicks.AddMajor(2.95, "2.95");
         plot.Axes.Bottom.TickGenerator = densityTicks;
 
-        var rhobMnemonic = report?.PrimaryCurves.GetValueOrDefault("Track3_BulkDensity")?.SelectedMnemonic;
-        var nphiMnemonic = report?.PrimaryCurves.GetValueOrDefault("Track3_NeutronPorosity")?.SelectedMnemonic;
-
-        var rhobCurve = FindCurve(well, rhobMnemonic, WellMeasurementType.BulkDensity);
-        var nphiCurve = FindCurve(well, nphiMnemonic, WellMeasurementType.NeutronPorosity);
+        var rhobCurve = FindCurve(well, report, "Track3_BulkDensity", WellMeasurementType.BulkDensity);
+        var nphiCurve = FindCurve(well, report, "Track3_NeutronPorosity", WellMeasurementType.NeutronPorosity);
 
         var hasRhob = rhobCurve is not null && HasValidValues(rhobCurve);
         var hasNphi = nphiCurve is not null && HasValidValues(nphiCurve);
@@ -286,13 +262,13 @@ public static class WellPlotter
         plot.Title($"Track 3: {string.Join(" + ", titleParts)}");
         plot.Axes.Bottom.Label.Text = "RHOB (1.95-2.95) | NPHI (0.45 - -0.15)";
 
-        // Plot Bulk Density (1.95 to 2.95 g/cm³)
+        var gapThreshold = DetermineGapThreshold(well.Depths, report);
+
         if (hasRhob)
         {
-            AddContiguousSegments(plot, well.Depths, rhobCurve!.Values, ColorDensityBlue, 1.8f);
+            AddContiguousSegments(plot, well.Depths, rhobCurve!.Values, ColorDensityBlue, 1.8f, gapThreshold: gapThreshold);
         }
 
-        // Plot Neutron Porosity (0.45 to -0.15 reversed mapped onto 1.95 - 2.95 range)
         if (hasNphi)
         {
             var mappedNphi = new double?[nphiCurve!.Values.Length];
@@ -301,10 +277,9 @@ public static class WellPlotter
                 var val = nphiCurve.Values[i];
                 if (val is { } n)
                 {
-                    // Normalize percentage to decimal fraction if necessary (e.g. 45% -> 0.45)
+
                     var normN = n > 1.5 ? n / 100.0 : n;
 
-                    // Linear mapping: 0.45 -> 1.95, -0.15 -> 2.95
                     var mappedX = 1.95 + ((0.45 - normN) / 0.60) * 1.0;
                     mappedNphi[i] = mappedX;
                 }
@@ -314,15 +289,12 @@ public static class WellPlotter
                 }
             }
 
-            AddContiguousSegments(plot, well.Depths, mappedNphi, ColorNeutronOrange, 1.8f, LinePattern.Dashed);
+            AddContiguousSegments(plot, well.Depths, mappedNphi, ColorNeutronOrange, 1.8f, LinePattern.Dashed, gapThreshold: gapThreshold);
         }
 
         return plot;
     }
 
-    /// <summary>
-    /// Creates the Depth Ruler Track showing clean depth ticks and depth numbers.
-    /// </summary>
     public static Plot CreateDepthTrackPlot(
         Well well,
         double minDepth,
@@ -334,11 +306,10 @@ public static class WellPlotter
         plot.Axes.SetLimitsY(bottom: maxDepth, top: minDepth);
         plot.Axes.SetLimitsX(0, 1);
 
-        plot.Title($"Depth\n({well.DepthUnit})");
-        plot.Axes.Bottom.TickGenerator = new NumericManual(); // No horizontal ticks
+        plot.Title($"Depth ({well.DepthUnit})");
+        plot.Axes.Bottom.TickGenerator = new NumericManual();
         plot.Axes.Bottom.Label.Text = well.DepthUnit;
 
-        // Depth axis on left with clean grid
         plot.Axes.Left.TickGenerator = new NumericAutomatic();
 
         return plot;
@@ -352,13 +323,33 @@ public static class WellPlotter
         plot.Grid.MinorLineColor = ScottPlot.Color.FromHex("#F0F0F0");
     }
 
+    private static double? DetermineGapThreshold(double[] depths, WellConditioningReport? report)
+    {
+        if (report?.Depth.Step is { } s && s > 0)
+            return s * 2.0;
+
+        if (depths.Length < 3) return null;
+        var deltas = new List<double>(Math.Min(depths.Length - 1, 200));
+        var step = Math.Max(1, (depths.Length - 1) / 200);
+        for (var i = 0; i < depths.Length - 1; i += step)
+        {
+            var d = Math.Abs(depths[i + 1] - depths[i]);
+            if (d > 0) deltas.Add(d);
+        }
+        if (deltas.Count == 0) return null;
+        deltas.Sort();
+        var median = deltas[deltas.Count / 2];
+        return median > 0 ? median * 2.0 : null;
+    }
+
     private static void AddContiguousSegments(
         Plot plot,
         double[] depths,
         double?[] values,
         ScottPlot.Color color,
         float lineWidth,
-        LinePattern? pattern = null)
+        LinePattern? pattern = null,
+        double? gapThreshold = null)
     {
         var activePattern = pattern ?? LinePattern.Solid;
         var currentXs = new List<double>();
@@ -367,14 +358,31 @@ public static class WellPlotter
         for (var i = 0; i < depths.Length; i++)
         {
             var v = values[i];
-            if (v.HasValue && !double.IsNaN(v.Value) && double.IsFinite(v.Value))
+            var isGap = i > 0 && gapThreshold.HasValue && Math.Abs(depths[i] - depths[i - 1]) > gapThreshold.Value;
+            var isValid = v.HasValue && !double.IsNaN(v.Value) && double.IsFinite(v.Value);
+
+            if (isGap)
             {
-                currentXs.Add(v.Value);
+
+                if (currentXs.Count > 0)
+                {
+                    var line = plot.Add.ScatterLine(currentXs.ToArray(), currentDepths.ToArray());
+                    line.Color = color;
+                    line.LineWidth = lineWidth;
+                    line.LinePattern = activePattern;
+                    currentXs.Clear();
+                    currentDepths.Clear();
+                }
+            }
+
+            if (isValid)
+            {
+                currentXs.Add(v!.Value);
                 currentDepths.Add(depths[i]);
             }
             else
             {
-                // Break contiguous segment
+
                 if (currentXs.Count > 0)
                 {
                     var line = plot.Add.ScatterLine(currentXs.ToArray(), currentDepths.ToArray());
@@ -413,18 +421,20 @@ public static class WellPlotter
         text.LabelAlignment = Alignment.MiddleCenter;
     }
 
-    private static Curve? FindCurve(Well well, string? mnemonic, params WellMeasurementType[] fallbackTypes)
+    private static Curve? FindCurve(Well well, WellConditioningReport? report, string trackName, params WellMeasurementType[] fallbackTypes)
     {
-        if (!string.IsNullOrWhiteSpace(mnemonic))
+        var aliasDict = CurveAliasDictionary.Default;
+        if (report is not null)
         {
-            var exact = well.Curves.FirstOrDefault(c => c.Mnemonic.Equals(mnemonic, StringComparison.OrdinalIgnoreCase));
-            if (exact is not null) return exact;
+            var mnemonic = report.PrimaryCurves.GetValueOrDefault(trackName)?.SelectedMnemonic;
+            return well.Curves.FirstOrDefault(c => c.Mnemonic.Equals(mnemonic, StringComparison.OrdinalIgnoreCase)
+                && CurveAliasDictionary.IsUnitCompatible(aliasDict.Resolve(c.Mnemonic), c.Unit));
         }
 
-        var aliasDict = CurveAliasDictionary.Default;
         foreach (var type in fallbackTypes)
         {
-            var matched = well.Curves.FirstOrDefault(c => aliasDict.Resolve(c.Mnemonic) == type);
+            var matched = well.Curves.FirstOrDefault(c => aliasDict.Resolve(c.Mnemonic) == type
+                && CurveAliasDictionary.IsUnitCompatible(type, c.Unit) && HasValidValues(c));
             if (matched is not null) return matched;
         }
 
@@ -446,15 +456,14 @@ public static class WellPlotter
         int width,
         int height)
     {
-        // Dark header banner
+
         using var bgPaint = new SKPaint
         {
-            Color = new SKColor(24, 32, 44), // Dark Navy/Slate
+            Color = new SKColor(24, 32, 44),
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(0, 0, width, height, bgPaint);
 
-        // Header Title: Well Name
         var wellDisplayName = !string.IsNullOrWhiteSpace(well.Name) ? well.Name : "UNNAMED WELL";
         using var titlePaint = new SKPaint
         {
@@ -464,7 +473,6 @@ public static class WellPlotter
         using var titleFont = new SKFont(SKTypeface.FromFamilyName("Segoe UI", SKFontStyle.Bold), 20);
         canvas.DrawText($"WELL: {wellDisplayName}", 20, 32, SKTextAlign.Left, titleFont, titlePaint);
 
-        // Subtitle: Source file + Depth Range + Row count
         var sourceFile = !string.IsNullOrWhiteSpace(report?.SourcePath) ? Path.GetFileName(report.SourcePath) : "LAS Log";
         var depthSpan = maxDepth - minDepth;
         var subText = $"File: {sourceFile}   |   Depth: {minDepth:F1} - {maxDepth:F1} {well.DepthUnit} (Span: {depthSpan:F1} {well.DepthUnit})   |   Rows: {well.Depths.Length:N0}   |   Curves: {well.Curves.Length}";
@@ -477,7 +485,6 @@ public static class WellPlotter
         using var subFont = new SKFont(SKTypeface.FromFamilyName("Segoe UI", SKFontStyle.Normal), 13);
         canvas.DrawText(subText, 20, 56, SKTextAlign.Left, subFont, subPaint);
 
-        // Legend tags on the right
         DrawLegendPill(canvas, width - 480, 18, "Track 1: GR (gAPI)", new SKColor(46, 125, 50));
         DrawLegendPill(canvas, width - 330, 18, "Track 2: Res (Log)", new SKColor(198, 40, 40));
         DrawLegendPill(canvas, width - 180, 18, "Track 3: RHOB / NPHI", new SKColor(21, 101, 192));
