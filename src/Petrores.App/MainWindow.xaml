@@ -171,7 +171,10 @@
                                        FontSize="12" Foreground="#64748B" Margin="0,4,0,0"/>
                         </StackPanel>
 
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Track 4 (Optional):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#64748B" FontWeight="SemiBold"/>
+                            <ComboBox x:Name="CmbTrack4" Width="160" Height="28" VerticalContentAlignment="Center" Margin="0,0,16,0"
+                                      SelectionChanged="CmbTrack4_SelectionChanged"/>
                             <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#64748B" FontWeight="SemiBold"/>
                             <Button Content="-" Style="{StaticResource SecondaryButton}" Width="32" Height="28" Padding="0" Click="BtnZoomOut_Click"/>
                             <Button x:Name="BtnResetZoom" Content="100%" Style="{StaticResource SecondaryButton}" Width="52" Height="28" Padding="0" Margin="4,0" Click="BtnResetZoom_Click"/>
@@ -181,7 +184,7 @@
                 </Border>
 
                                 <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="10,6,10,10">
-                                        <TabItem Header="  3-Track Log Plot  " FontSize="13" FontWeight="SemiBold">
+                                        <TabItem Header="  Log Plot (Composite)  " FontSize="13" FontWeight="SemiBold">
                         <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0">
                             <ScrollViewer x:Name="PlotScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                                 <Grid x:Name="PlotContainer" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="10">

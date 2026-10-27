@@ -22,6 +22,8 @@ public partial class MainWindow : Window
     private LasHeaderEntry[] currentParamEntries = [];
     private LasHeaderEntry[] currentVersionEntries = [];
     private string currentOtherText = string.Empty;
+    private string? _selectedTrack4Mnemonic;
+    private bool _isUpdatingCmbTrack4;
 
     private CancellationTokenSource? backgroundCts;
 
@@ -213,6 +215,9 @@ public partial class MainWindow : Window
             TxtConditioningReport.Text = "";
             LvCurves.ItemsSource = null;
             UpdateMetadata(null);
+            _isUpdatingCmbTrack4 = true;
+            CmbTrack4.Items.Clear();
+            _isUpdatingCmbTrack4 = false;
             return;
         }
 
@@ -250,6 +255,9 @@ public partial class MainWindow : Window
                 TxtNoPlot.Visibility = Visibility.Visible;
                 TxtConditioningReport.Text = "File failed to load.\n" + (item.LoadResult is not null ? string.Join(Environment.NewLine, item.LoadResult.Diagnostics.Select(d => d.Message)) : "");
                 LvCurves.ItemsSource = null;
+                _isUpdatingCmbTrack4 = true;
+                CmbTrack4.Items.Clear();
+                _isUpdatingCmbTrack4 = false;
                 return;
             }
 
@@ -257,25 +265,9 @@ public partial class MainWindow : Window
             TxtConditioningReport.Text = report.ToJson(indented: true);
             LvCurves.ItemsSource = report.Curves;
 
-            TxtNoPlot.Visibility = Visibility.Collapsed;
-            TxtStatus.Text = $"Rendering log plot for '{item.DisplayName}'...";
+            PopulateTrack4ComboBox(item);
 
-            byte[]? plotBytes = item.CachedPlotBytes;
-            if (plotBytes is null)
-            {
-                plotBytes = await Task.Run(() => WellPlotter.RenderCompositePlot(
-                    item.ConditionResult.ConditionedWell,
-                    item.ConditionResult.Report), plotCt);
-
-                if (plotCt.IsCancellationRequested) return;
-                item.CachedPlotBytes = plotBytes;
-            }
-
-            if (!plotCt.IsCancellationRequested)
-            {
-                ImgPlot.Source = LoadBitmapFromBytes(plotBytes);
-                TxtStatus.Text = $"Plot rendered for '{item.DisplayName}'. ({plotBytes.Length / 1024} KB)";
-            }
+            await RenderPlotAsync(item, plotCt);
         }
         catch (OperationCanceledException)
         {
@@ -287,6 +279,125 @@ public partial class MainWindow : Window
             TxtNoPlot.Text = $"Failed to render plot: {ex.Message}";
             TxtNoPlot.Visibility = Visibility.Visible;
             ImgPlot.Source = null;
+        }
+    }
+
+    private void PopulateTrack4ComboBox(WellItemViewModel item)
+    {
+        _isUpdatingCmbTrack4 = true;
+        try
+        {
+            CmbTrack4.Items.Clear();
+            CmbTrack4.Items.Add("None (Standard 3-Track)");
+
+            if (item.ConditionResult is not null)
+            {
+                foreach (var c in item.ConditionResult.ConditionedWell.Curves)
+                {
+                    var unitStr = !string.IsNullOrWhiteSpace(c.Unit) ? $" ({c.Unit})" : "";
+                    CmbTrack4.Items.Add($"{c.Mnemonic}{unitStr}");
+                }
+            }
+
+            var selectedIdx = 0;
+            if (!string.IsNullOrEmpty(_selectedTrack4Mnemonic))
+            {
+                for (var i = 1; i < CmbTrack4.Items.Count; i++)
+                {
+                    var text = CmbTrack4.Items[i]?.ToString() ?? "";
+                    if (text.StartsWith(_selectedTrack4Mnemonic + " (", StringComparison.OrdinalIgnoreCase) ||
+                        text.Equals(_selectedTrack4Mnemonic, StringComparison.OrdinalIgnoreCase))
+                    {
+                        selectedIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            CmbTrack4.SelectedIndex = selectedIdx;
+            if (selectedIdx == 0)
+            {
+                _selectedTrack4Mnemonic = null;
+            }
+        }
+        finally
+        {
+            _isUpdatingCmbTrack4 = false;
+        }
+    }
+
+    private async void CmbTrack4_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isUpdatingCmbTrack4) return;
+        if (LstWells.SelectedItem is not WellItemViewModel item || item.ConditionResult is null) return;
+
+        if (CmbTrack4.SelectedIndex <= 0)
+        {
+            _selectedTrack4Mnemonic = null;
+        }
+        else
+        {
+            var selectedText = CmbTrack4.SelectedItem as string;
+            if (!string.IsNullOrEmpty(selectedText))
+            {
+                var idx = selectedText.IndexOf(" (", StringComparison.Ordinal);
+                _selectedTrack4Mnemonic = idx > 0 ? selectedText[..idx].Trim() : selectedText.Trim();
+            }
+            else
+            {
+                _selectedTrack4Mnemonic = null;
+            }
+        }
+
+        currentPlotCts?.Cancel();
+        currentPlotCts?.Dispose();
+        currentPlotCts = new CancellationTokenSource();
+        var plotCt = currentPlotCts.Token;
+
+        try
+        {
+            await RenderPlotAsync(item, plotCt);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            TxtStatus.Text = $"Error rendering plot for '{item.DisplayName}': {ex.Message}";
+        }
+    }
+
+    private async Task RenderPlotAsync(WellItemViewModel item, CancellationToken plotCt)
+    {
+        if (item.ConditionResult is null) return;
+
+        TxtNoPlot.Visibility = Visibility.Collapsed;
+        TxtStatus.Text = $"Rendering log plot for '{item.DisplayName}'...";
+
+        byte[]? plotBytes = null;
+        if (_selectedTrack4Mnemonic is null)
+        {
+            plotBytes = item.CachedPlotBytes;
+        }
+
+        if (plotBytes is null)
+        {
+            var options = new WellPlotterOptions(Track4CurveMnemonic: _selectedTrack4Mnemonic);
+            plotBytes = await Task.Run(() => WellPlotter.RenderCompositePlot(
+                item.ConditionResult.ConditionedWell,
+                item.ConditionResult.Report,
+                options), plotCt);
+
+            if (plotCt.IsCancellationRequested) return;
+
+            if (_selectedTrack4Mnemonic is null)
+            {
+                item.CachedPlotBytes = plotBytes;
+            }
+        }
+
+        if (!plotCt.IsCancellationRequested)
+        {
+            ImgPlot.Source = LoadBitmapFromBytes(plotBytes);
+            TxtStatus.Text = $"Plot rendered for '{item.DisplayName}'. ({plotBytes.Length / 1024} KB)";
         }
     }
 
@@ -321,9 +432,11 @@ public partial class MainWindow : Window
         {
             try
             {
-                var bytes = item.CachedPlotBytes ?? WellPlotter.RenderCompositePlot(
+                var options = new WellPlotterOptions(Track4CurveMnemonic: _selectedTrack4Mnemonic);
+                var bytes = (_selectedTrack4Mnemonic is null ? item.CachedPlotBytes : null) ?? WellPlotter.RenderCompositePlot(
                     item.ConditionResult.ConditionedWell,
-                    item.ConditionResult.Report);
+                    item.ConditionResult.Report,
+                    options);
 
                 File.WriteAllBytes(sfd.FileName, bytes);
                 MessageBox.Show($"Plot exported successfully:\n{sfd.FileName}", "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);

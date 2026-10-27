@@ -190,4 +190,58 @@ public class WellPlotterTests
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 1000);
     }
+
+    [Fact]
+    public void RenderCompositePlot_WithValidTrack4_GeneratesExpandedPlotAndNonEmptyPng()
+    {
+        var well = CreateSampleWell();
+        var caliCurve = new Curve("CALI", "IN", "Caliper", [8.5, 8.6, 9.0, 9.2, 8.8, 8.5]);
+        var wellWithCali = well with { Curves = [.. well.Curves, caliCurve] };
+        var conditionResult = WellConditioner.Condition(wellWithCali);
+
+        var options = new WellPlotterOptions(Track4CurveMnemonic: "CALI");
+        var pngBytes = WellPlotter.RenderCompositePlot(conditionResult.ConditionedWell, conditionResult.Report, options);
+
+        Assert.NotNull(pngBytes);
+        Assert.True(pngBytes.Length > 1000);
+        Assert.Equal(0x89, pngBytes[0]);
+        Assert.Equal(0x50, pngBytes[1]);
+        Assert.Equal(0x4E, pngBytes[2]);
+        Assert.Equal(0x47, pngBytes[3]);
+
+        using var bmp = SKBitmap.Decode(pngBytes);
+        Assert.NotNull(bmp);
+        Assert.True(bmp.Width > 1350);
+    }
+
+    [Fact]
+    public void RenderCompositePlot_WithNonExistentTrack4_GracefullyFallsBackTo3Tracks()
+    {
+        var well = CreateSampleWell();
+        var conditionResult = WellConditioner.Condition(well);
+
+        var options = new WellPlotterOptions(Track4CurveMnemonic: "NON_EXISTENT_CURVE");
+        var pngBytes = WellPlotter.RenderCompositePlot(conditionResult.ConditionedWell, conditionResult.Report, options);
+
+        Assert.NotNull(pngBytes);
+        Assert.True(pngBytes.Length > 1000);
+
+        using var bmp = SKBitmap.Decode(pngBytes);
+        Assert.NotNull(bmp);
+        Assert.Equal(1350, bmp.Width);
+    }
+
+    [Fact]
+    public void Track4Plot_SingleValue_ExpandsLimitsWithoutError()
+    {
+        var curve = new Curve("CALI", "IN", "Caliper", [8.5, 8.5, 8.5]);
+        var well = CreateSampleWell() with { Depths = [1000.0, 1010.0, 1020.0], Curves = [curve] };
+        var plot = WellPlotter.CreateTrack4Plot(well, null, 1000.0, 1020.0, curve);
+
+        Assert.NotNull(plot);
+        var limits = plot.Axes.GetLimits();
+        Assert.True(limits.Left < limits.Right);
+        Assert.True(limits.Left < 8.5);
+        Assert.True(limits.Right > 8.5);
+    }
 }

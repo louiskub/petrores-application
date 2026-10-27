@@ -14,7 +14,8 @@ public sealed record WellPlotterOptions(
     double DensityMin = 1.95,
     double DensityMax = 2.95,
     double NeutronMin = 0.45,
-    double NeutronMax = -0.15
+    double NeutronMax = -0.15,
+    string? Track4CurveMnemonic = null
 );
 
 public static class WellPlotter
@@ -23,6 +24,7 @@ public static class WellPlotter
     private static readonly ScottPlot.Color ColorCrimson = ScottPlot.Color.FromHex("#C62828");
     private static readonly ScottPlot.Color ColorDensityBlue = ScottPlot.Color.FromHex("#1565C0");
     private static readonly ScottPlot.Color ColorNeutronOrange = ScottPlot.Color.FromHex("#E65100");
+    private static readonly ScottPlot.Color ColorDeepPurple = ScottPlot.Color.FromHex("#7B1FA2");
     private static readonly ScottPlot.Color ColorGridGray = ScottPlot.Color.FromHex("#E0E0E0");
 
     public static byte[] RenderCompositePlot(
@@ -45,18 +47,43 @@ public static class WellPlotter
             maxDepth = minDepth + 1.0;
         }
 
+        Curve? track4Curve = null;
+        if (!string.IsNullOrWhiteSpace(options.Track4CurveMnemonic))
+        {
+            track4Curve = well.Curves.FirstOrDefault(c => c.Mnemonic.Equals(options.Track4CurveMnemonic, StringComparison.OrdinalIgnoreCase));
+        }
+        var hasTrack4 = track4Curve is not null;
+
+        var totalWidth = hasTrack4 && options.ImageWidth == 1350
+            ? (int)(options.ImageWidth * 1.28)
+            : options.ImageWidth;
+
         const int headerHeight = 90;
         var plotHeight = options.ImageHeight - headerHeight;
         const int depthTrackWidth = 110;
-        var remainingWidth = options.ImageWidth - depthTrackWidth;
-        var track1Width = (int)(remainingWidth * 0.31);
-        var track2Width = (int)(remainingWidth * 0.31);
-        var track3Width = remainingWidth - track1Width - track2Width;
+        var remainingWidth = totalWidth - depthTrackWidth;
+
+        int track1Width, track2Width, track3Width, track4Width;
+        if (hasTrack4)
+        {
+            track1Width = (int)(remainingWidth * 0.25);
+            track2Width = (int)(remainingWidth * 0.25);
+            track3Width = (int)(remainingWidth * 0.25);
+            track4Width = remainingWidth - track1Width - track2Width - track3Width;
+        }
+        else
+        {
+            track1Width = (int)(remainingWidth * 0.31);
+            track2Width = (int)(remainingWidth * 0.31);
+            track3Width = remainingWidth - track1Width - track2Width;
+            track4Width = 0;
+        }
 
         var depthPlot = CreateDepthTrackPlot(well, minDepth, maxDepth);
         var track1Plot = CreateTrack1Plot(well, report, minDepth, maxDepth, options);
         var track2Plot = CreateTrack2Plot(well, report, minDepth, maxDepth, options);
         var track3Plot = CreateTrack3Plot(well, report, minDepth, maxDepth, options);
+        Plot? track4Plot = hasTrack4 ? CreateTrack4Plot(well, report, minDepth, maxDepth, track4Curve!, options) : null;
 
         const float sharedTopPadding = 65f;
         const float sharedBottomPadding = 45f;
@@ -64,22 +91,28 @@ public static class WellPlotter
         track1Plot.Layout.Fixed(new PixelPadding(left: 60, right: 15, bottom: sharedBottomPadding, top: sharedTopPadding));
         track2Plot.Layout.Fixed(new PixelPadding(left: 60, right: 15, bottom: sharedBottomPadding, top: sharedTopPadding));
         track3Plot.Layout.Fixed(new PixelPadding(left: 60, right: 15, bottom: sharedBottomPadding, top: sharedTopPadding));
+        if (track4Plot is not null)
+        {
+            track4Plot.Layout.Fixed(new PixelPadding(left: 60, right: 15, bottom: sharedBottomPadding, top: sharedTopPadding));
+        }
 
         var depthBytes = depthPlot.GetImageBytes(depthTrackWidth, plotHeight, ImageFormat.Png);
         var t1Bytes = track1Plot.GetImageBytes(track1Width, plotHeight, ImageFormat.Png);
         var t2Bytes = track2Plot.GetImageBytes(track2Width, plotHeight, ImageFormat.Png);
         var t3Bytes = track3Plot.GetImageBytes(track3Width, plotHeight, ImageFormat.Png);
+        byte[]? t4Bytes = track4Plot?.GetImageBytes(track4Width, plotHeight, ImageFormat.Png);
 
         using var bmpDepth = SKBitmap.Decode(depthBytes);
         using var bmpT1 = SKBitmap.Decode(t1Bytes);
         using var bmpT2 = SKBitmap.Decode(t2Bytes);
         using var bmpT3 = SKBitmap.Decode(t3Bytes);
+        using var bmpT4 = t4Bytes is not null ? SKBitmap.Decode(t4Bytes) : null;
 
-        using var composite = new SKBitmap(options.ImageWidth, options.ImageHeight);
+        using var composite = new SKBitmap(totalWidth, options.ImageHeight);
         using var canvas = new SKCanvas(composite);
         canvas.Clear(SKColors.White);
 
-        DrawHeader(canvas, well, report, minDepth, maxDepth, options.ImageWidth, headerHeight);
+        DrawHeader(canvas, well, report, minDepth, maxDepth, totalWidth, headerHeight, track4Curve);
 
         var currentX = 0f;
         canvas.DrawBitmap(bmpDepth, currentX, headerHeight);
@@ -92,6 +125,12 @@ public static class WellPlotter
         currentX += track2Width;
 
         canvas.DrawBitmap(bmpT3, currentX, headerHeight);
+        currentX += track3Width;
+
+        if (bmpT4 is not null)
+        {
+            canvas.DrawBitmap(bmpT4, currentX, headerHeight);
+        }
 
         using var dividerPaint = new SKPaint
         {
@@ -102,6 +141,10 @@ public static class WellPlotter
         canvas.DrawLine(depthTrackWidth, headerHeight, depthTrackWidth, options.ImageHeight, dividerPaint);
         canvas.DrawLine(depthTrackWidth + track1Width, headerHeight, depthTrackWidth + track1Width, options.ImageHeight, dividerPaint);
         canvas.DrawLine(depthTrackWidth + track1Width + track2Width, headerHeight, depthTrackWidth + track1Width + track2Width, options.ImageHeight, dividerPaint);
+        if (hasTrack4)
+        {
+            canvas.DrawLine(depthTrackWidth + track1Width + track2Width + track3Width, headerHeight, depthTrackWidth + track1Width + track2Width + track3Width, options.ImageHeight, dividerPaint);
+        }
 
         using var image = SKImage.FromBitmap(composite);
         using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
@@ -295,6 +338,59 @@ public static class WellPlotter
         return plot;
     }
 
+    public static Plot CreateTrack4Plot(
+        Well well,
+        WellConditioningReport? report,
+        double minDepth,
+        double maxDepth,
+        Curve curve,
+        WellPlotterOptions? options = null)
+    {
+        options ??= new WellPlotterOptions();
+        var plot = new Plot();
+        ConfigurePlotTheme(plot);
+
+        plot.Axes.SetLimitsY(bottom: maxDepth, top: minDepth);
+        plot.Axes.Left.TickGenerator = new NumericAutomatic();
+
+        var unitText = !string.IsNullOrWhiteSpace(curve.Unit) ? $" ({curve.Unit})" : "";
+
+        if (!HasValidValues(curve))
+        {
+            plot.Axes.SetLimitsX(0, 100);
+            plot.Title($"Track 4: {curve.Mnemonic}{unitText}\n[No Data Available]");
+            AddCenteredNotice(plot, $"No {curve.Mnemonic} data", 0, 100, minDepth, maxDepth);
+            return plot;
+        }
+
+        var validVals = curve.Values.Where(v => v.HasValue && !double.IsNaN(v.Value) && double.IsFinite(v.Value)).Select(v => v!.Value).ToArray();
+        var minVal = validVals.Min();
+        var maxVal = validVals.Max();
+
+        double xMin, xMax;
+        if (Math.Abs(maxVal - minVal) < 1e-6)
+        {
+            xMin = minVal - 1.0;
+            xMax = maxVal + 1.0;
+        }
+        else
+        {
+            var span = maxVal - minVal;
+            var pad = span * 0.05;
+            xMin = minVal - pad;
+            xMax = maxVal + pad;
+        }
+
+        plot.Axes.SetLimitsX(xMin, xMax);
+        plot.Title($"Track 4: {curve.Mnemonic}{unitText}");
+        plot.Axes.Bottom.Label.Text = $"{curve.Mnemonic}{unitText}";
+
+        var gapThreshold = DetermineGapThreshold(well.Depths, report);
+        AddContiguousSegments(plot, well.Depths, curve.Values, ColorDeepPurple, 1.8f, gapThreshold: gapThreshold);
+
+        return plot;
+    }
+
     public static Plot CreateDepthTrackPlot(
         Well well,
         double minDepth,
@@ -454,7 +550,8 @@ public static class WellPlotter
         double minDepth,
         double maxDepth,
         int width,
-        int height)
+        int height,
+        Curve? track4Curve = null)
     {
 
         using var bgPaint = new SKPaint
@@ -485,9 +582,21 @@ public static class WellPlotter
         using var subFont = new SKFont(SKTypeface.FromFamilyName("Segoe UI", SKFontStyle.Normal), 13);
         canvas.DrawText(subText, 20, 56, SKTextAlign.Left, subFont, subPaint);
 
-        DrawLegendPill(canvas, width - 480, 18, "Track 1: GR (gAPI)", new SKColor(46, 125, 50));
-        DrawLegendPill(canvas, width - 330, 18, "Track 2: Res (Log)", new SKColor(198, 40, 40));
-        DrawLegendPill(canvas, width - 180, 18, "Track 3: RHOB / NPHI", new SKColor(21, 101, 192));
+        if (track4Curve is not null)
+        {
+            DrawLegendPill(canvas, width - 630, 18, "Track 1: GR (gAPI)", new SKColor(46, 125, 50));
+            DrawLegendPill(canvas, width - 480, 18, "Track 2: Res (Log)", new SKColor(198, 40, 40));
+            DrawLegendPill(canvas, width - 330, 18, "Track 3: RHOB / NPHI", new SKColor(21, 101, 192));
+            var t4Label = $"Track 4: {track4Curve.Mnemonic}";
+            if (t4Label.Length > 18) t4Label = t4Label[..18];
+            DrawLegendPill(canvas, width - 180, 18, t4Label, new SKColor(123, 31, 162));
+        }
+        else
+        {
+            DrawLegendPill(canvas, width - 480, 18, "Track 1: GR (gAPI)", new SKColor(46, 125, 50));
+            DrawLegendPill(canvas, width - 330, 18, "Track 2: Res (Log)", new SKColor(198, 40, 40));
+            DrawLegendPill(canvas, width - 180, 18, "Track 3: RHOB / NPHI", new SKColor(21, 101, 192));
+        }
     }
 
     private static void DrawLegendPill(SKCanvas canvas, float x, float y, string label, SKColor color)

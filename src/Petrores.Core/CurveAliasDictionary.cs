@@ -41,6 +41,16 @@ public sealed partial class CurveAliasDictionary
         Add("HCGR", WellMeasurementType.GammaRay, 16);
         Add("PGR", WellMeasurementType.GammaRay, 17);
         Add("WGR", WellMeasurementType.GammaRay, 18);
+        Add("GAPI", WellMeasurementType.GammaRay, 19);
+        Add("GRS", WellMeasurementType.GammaRay, 20);
+        Add("GRGC", WellMeasurementType.GammaRay, 21);
+        Add("GRSG", WellMeasurementType.GammaRay, 22);
+        Add("GCGR", WellMeasurementType.GammaRay, 23);
+        Add("GRTO", WellMeasurementType.GammaRay, 24);
+        Add("GRGM", WellMeasurementType.GammaRay, 25);
+        Add("CSGR", WellMeasurementType.GammaRay, 26);
+        Add("GRSLC", WellMeasurementType.GammaRay, 27);
+        Add("GRSL", WellMeasurementType.GammaRay, 28);
 
         Add("RT", WellMeasurementType.ResistivityDeep, 1);
         Add("ILD", WellMeasurementType.ResistivityDeep, 2);
@@ -74,6 +84,9 @@ public sealed partial class CurveAliasDictionary
         Add("DDLL", WellMeasurementType.ResistivityDeep, 30);
         Add("DPRD", WellMeasurementType.ResistivityDeep, 31);
         Add("ATCO90", WellMeasurementType.ResistivityDeep, 32);
+        Add("HLLD", WellMeasurementType.ResistivityDeep, 33);
+        Add("RLAD", WellMeasurementType.ResistivityDeep, 34);
+        Add("RO90", WellMeasurementType.ResistivityDeep, 35);
 
         Add("ILM", WellMeasurementType.ResistivityMedium, 51);
         Add("LLM", WellMeasurementType.ResistivityMedium, 52);
@@ -82,13 +95,15 @@ public sealed partial class CurveAliasDictionary
         Add("AF30", WellMeasurementType.ResistivityMedium, 55);
         Add("AO30", WellMeasurementType.ResistivityMedium, 56);
         Add("IMPH", WellMeasurementType.ResistivityMedium, 57);
-        Add("RM_HRLT", WellMeasurementType.ResistivityMedium, 58);
+        // Mud resistivity must not fall back to the RM alias.
+        Add("RM_HRLT", WellMeasurementType.Unknown, int.MaxValue);
         Add("RM", WellMeasurementType.ResistivityMedium, 59);
         Add("RMED", WellMeasurementType.ResistivityMedium, 60);
         Add("R30", WellMeasurementType.ResistivityMedium, 61);
         Add("RESM", WellMeasurementType.ResistivityMedium, 62);
         Add("RES_MED", WellMeasurementType.ResistivityMedium, 63);
         Add("DPRL", WellMeasurementType.ResistivityMedium, 64);
+        Add("RO30", WellMeasurementType.ResistivityMedium, 65);
 
         Add("MSFL", WellMeasurementType.ResistivityShallow, 71);
         Add("SFLU", WellMeasurementType.ResistivityShallow, 72);
@@ -117,6 +132,9 @@ public sealed partial class CurveAliasDictionary
         Add("DSLL", WellMeasurementType.ResistivityShallow, 95);
         Add("DPRS", WellMeasurementType.ResistivityShallow, 96);
         Add("RES_SHAL", WellMeasurementType.ResistivityShallow, 97);
+        Add("HLLS", WellMeasurementType.ResistivityShallow, 98);
+        Add("HRLS", WellMeasurementType.ResistivityShallow, 99);
+        Add("RO10", WellMeasurementType.ResistivityShallow, 100);
 
         Add("RES", WellMeasurementType.Resistivity, 40);
         Add("RESISTIVITY", WellMeasurementType.Resistivity, 41);
@@ -135,6 +153,9 @@ public sealed partial class CurveAliasDictionary
         Add("RHO", WellMeasurementType.BulkDensity, 12);
         Add("DENCOMP", WellMeasurementType.BulkDensity, 13);
         Add("DEN_Z", WellMeasurementType.BulkDensity, 14);
+        Add("RHOI", WellMeasurementType.BulkDensity, 15);
+        Add("DNC", WellMeasurementType.BulkDensity, 16);
+        Add("DENIC", WellMeasurementType.BulkDensity, 17);
 
         Add("NPHI", WellMeasurementType.NeutronPorosity, 1);
         Add("TNPH", WellMeasurementType.NeutronPorosity, 2);
@@ -162,6 +183,14 @@ public sealed partial class CurveAliasDictionary
         Add("CNAD", WellMeasurementType.NeutronPorosity, 24);
         Add("CNPOR", WellMeasurementType.NeutronPorosity, 25);
         Add("NPDL", WellMeasurementType.NeutronPorosity, 26);
+        Add("NPRL", WellMeasurementType.NeutronPorosity, 27);
+        Add("NPRS", WellMeasurementType.NeutronPorosity, 28);
+        Add("NPRD", WellMeasurementType.NeutronPorosity, 29);
+        Add("APLC", WellMeasurementType.NeutronPorosity, 30);
+        Add("ENLI", WellMeasurementType.NeutronPorosity, 31);
+        Add("APSC", WellMeasurementType.NeutronPorosity, 32);
+        Add("ENPS", WellMeasurementType.NeutronPorosity, 33);
+        Add("APDC", WellMeasurementType.NeutronPorosity, 34);
 
         Add("DPHI", WellMeasurementType.DensityPorosity, 1);
         Add("DPHZ", WellMeasurementType.DensityPorosity, 2);
@@ -175,6 +204,8 @@ public sealed partial class CurveAliasDictionary
         Add("PORZC", WellMeasurementType.DensityPorosity, 10);
         Add("PHID", WellMeasurementType.DensityPorosity, 11);
         Add("DPDL", WellMeasurementType.DensityPorosity, 12);
+        Add("HDPH_SAN", WellMeasurementType.DensityPorosity, 13);
+        Add("PRZC", WellMeasurementType.DensityPorosity, 14);
 
         Add("SPHI", WellMeasurementType.SonicPorosity, 1);
         Add("SPHD", WellMeasurementType.SonicPorosity, 2);
@@ -182,6 +213,8 @@ public sealed partial class CurveAliasDictionary
         Add("SPHS", WellMeasurementType.SonicPorosity, 4);
         Add("SPDL", WellMeasurementType.SonicPorosity, 5);
         Add("PORA", WellMeasurementType.SonicPorosity, 6);
+        Add("SPRL", WellMeasurementType.SonicPorosity, 7);
+        Add("RPHI", WellMeasurementType.SonicPorosity, 8);
 
         Add("PXND", WellMeasurementType.CrossplotPorosity, 1);
         Add("PXND_HILT", WellMeasurementType.CrossplotPorosity, 2);
@@ -192,6 +225,8 @@ public sealed partial class CurveAliasDictionary
         Add("CPHI", WellMeasurementType.CrossplotPorosity, 7);
         Add("TCMR", WellMeasurementType.CrossplotPorosity, 8);
         Add("CMRP_3MS", WellMeasurementType.CrossplotPorosity, 9);
+        Add("XPOR", WellMeasurementType.CrossplotPorosity, 10);
+        Add("CPZC", WellMeasurementType.CrossplotPorosity, 11);
 
         Add("POR", WellMeasurementType.Porosity, 1);
         Add("POROSITY", WellMeasurementType.Porosity, 2);
@@ -202,6 +237,7 @@ public sealed partial class CurveAliasDictionary
         Add("DRHO", WellMeasurementType.DensityCorrection, 1);
         Add("ZCOR", WellMeasurementType.DensityCorrection, 2);
         Add("DCOR", WellMeasurementType.DensityCorrection, 3);
+        Add("HDRA", WellMeasurementType.DensityCorrection, 4);
 
         Add("PE", WellMeasurementType.Photoelectric, 1);
         Add("PEF", WellMeasurementType.Photoelectric, 2);
@@ -223,12 +259,13 @@ public sealed partial class CurveAliasDictionary
         Add("CALS", WellMeasurementType.Caliper, 4);
         Add("DCAL", WellMeasurementType.Caliper, 5);
         Add("CLDC", WellMeasurementType.Caliper, 6);
-        Add("HDRA", WellMeasurementType.Caliper, 7);
         Add("C1", WellMeasurementType.Caliper, 8);
         Add("C2", WellMeasurementType.Caliper, 9);
         Add("CALX", WellMeasurementType.Caliper, 10);
         Add("CALY", WellMeasurementType.Caliper, 11);
         Add("DSOZ", WellMeasurementType.Caliper, 12);
+        Add("IECX", WellMeasurementType.Caliper, 13);
+        Add("IECY", WellMeasurementType.Caliper, 14);
 
         Add("SP", WellMeasurementType.SpontaneousPotential, 1);
         Add("SPC", WellMeasurementType.SpontaneousPotential, 2);
@@ -264,7 +301,7 @@ public sealed partial class CurveAliasDictionary
         aliases[mnemonic.Trim()] = (type, priority);
     }
 
-    [GeneratedRegex(@"([:_.\-\[\(].*|\d+)$")]
+    [GeneratedRegex(@"[:_.\-\[\(]|\d+$")]
     private static partial Regex SuffixRegex();
 
     public (WellMeasurementType Measurement, int Priority) ResolveWithPriority(string? mnemonic)
@@ -276,9 +313,13 @@ public sealed partial class CurveAliasDictionary
         if (aliases.TryGetValue(cleaned, out var match))
             return match;
 
-        var stripped = SuffixRegex().Replace(cleaned, "").Trim();
-        if (stripped.Length > 0 && aliases.TryGetValue(stripped, out var strippedMatch))
-            return (strippedMatch.Measurement, strippedMatch.Priority + 50);
+        var suffixes = SuffixRegex().Matches(cleaned);
+        for (var i = suffixes.Count - 1; i >= 0; i--)
+        {
+            var stripped = cleaned[..suffixes[i].Index].Trim();
+            if (stripped.Length > 0 && aliases.TryGetValue(stripped, out var strippedMatch))
+                return (strippedMatch.Measurement, strippedMatch.Priority == int.MaxValue ? int.MaxValue : strippedMatch.Priority + 50);
+        }
 
         return (WellMeasurementType.Unknown, int.MaxValue);
     }
