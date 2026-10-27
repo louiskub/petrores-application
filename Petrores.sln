@@ -11,6 +11,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Petrores.Core.Tests", "tests\Petrores.Core.Tests\Petrores.Core.Tests.csproj", "{9BC6B7EE-7112-43E8-9535-E5A17824BB9E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Petrores.Check", "tools\Petrores.Check\Petrores.Check.csproj", "{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +49,18 @@ Global
 		{9BC6B7EE-7112-43E8-9535-E5A17824BB9E}.Release|x64.Build.0 = Release|Any CPU
 		{9BC6B7EE-7112-43E8-9535-E5A17824BB9E}.Release|x86.ActiveCfg = Release|Any CPU
 		{9BC6B7EE-7112-43E8-9535-E5A17824BB9E}.Release|x86.Build.0 = Release|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Debug|x64.Build.0 = Debug|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Debug|x86.Build.0 = Debug|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Release|x64.ActiveCfg = Release|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Release|x64.Build.0 = Release|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Release|x86.ActiveCfg = Release|Any CPU
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -52,5 +68,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{096EBC1F-2214-4040-A939-542479954174} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{9BC6B7EE-7112-43E8-9535-E5A17824BB9E} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{80FC917B-D306-4C7A-82FF-F78EA1A2FEDE} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal
